@@ -137,7 +137,8 @@ void main() {
 		gl_Position = toClipSpace3(vertex);
 
 
-        if(data_in[i].color.a < 1.0) gl_Position = vec4(10,10,10,0);
+        // Do not discard vertices with alpha < 1.0 so that translucent beacon beams and mod visuals can render
+        // if(data_in[i].color.a < 1.0) gl_Position = vec4(10,10,10,0);
 
         #ifdef TAA_UPSCALING
             gl_Position.xy = gl_Position.xy * RENDER_SCALE + RENDER_SCALE * gl_Position.w - gl_Position.w;

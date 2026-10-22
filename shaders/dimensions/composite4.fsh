@@ -511,8 +511,8 @@ void blendAllFogTypes( inout vec3 color, inout float bloomyFogMult, vec4 volumet
 
 void blendForwardRendering( inout vec3 color, vec4 translucentShader ){
   // REMEMBER that forward rendered color is written as color.rgb/10.0, invert it.
-  if(translucentShader.a > 0) {
-    color = color * (1.0 - translucentShader.a) + translucentShader.rgb * 10.0;
+  if(translucentShader.a > 0.0) {
+    color = color * clamp(1.0 - translucentShader.a, 0.0, 1.0) + translucentShader.rgb * 10.0;
   }
 }
 
@@ -819,7 +819,7 @@ void main() {
   #endif
 
   // ensure that bloomy fog mask in this VLBehindTranslucents.a does not darken outside of glass areas.
-  if(translucentCheck) color.rgb = color.rgb * VLBehindTranslucents.a + VLBehindTranslucents.rgb;
+  if(translucentCheck && !isSky) color.rgb = color.rgb * VLBehindTranslucents.a + VLBehindTranslucents.rgb;
   // to avoid bloomy fog applying to the surface of water, and the clouds, swap between high and low quality VL buffers.
   bloomyFogMult *= isWater ? temporallyFilteredVL.a * 0.75 + 0.25 : (TranslucentShader.a < 0.9995 ? VLBehindTranslucents.a * 0.75 + 0.25 : 1.0);
 
@@ -855,9 +855,6 @@ void main() {
       translucentCheck && !isBlockBreaking) color *= mix(normalize(albedo.rgb+1e-7), vec3(1.0), max(borderFog.a, min(max(0.1-albedo.a,0.0) * 10.0,1.0))) ;
   #endif
 
-  // blend forward rendered programs onto the color.
-  blendForwardRendering(color, TranslucentShader);
-
   #if defined BorderFog && defined OVERWORLD_SHADER
     color = mix(color, borderFog.rgb, borderFogDensity);
   #endif
@@ -870,6 +867,9 @@ void main() {
 
   // blend all fog types. volumetric fog, volumetric clouds, distance based fogs for lava, powdered snow, blindness, and darkness.
   blendAllFogTypes(color, bloomyFogMult, temporallyFilteredVL, linearDistance, playerPos_normalized, cameraPosition, isSky, isLightning);
+
+  // blend forward rendered programs onto the color (after environmental fog so visuals aren't obliterated by sky/clouds).
+  blendForwardRendering(color, TranslucentShader);
 
   ////// --------------- RAINBOW
 

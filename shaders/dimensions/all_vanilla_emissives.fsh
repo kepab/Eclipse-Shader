@@ -44,7 +44,7 @@ void main() {
     #endif
 
     #if defined BEACON_BEAM
-	    gl_FragData[0] = vec4(Albedo.rgb*Albedo.rgb * 0.1 * 5.0 * Emissive_Brightness, Albedo.a*color.a);
+	    gl_FragData[0] = vec4(Albedo.rgb * 0.1 * 5.0 * Emissive_Brightness, Albedo.a*color.a);
     #endif
 
     #if defined LIGHTNING_AND_DRAGON_DEATH_BEAMS
