@@ -44,7 +44,21 @@ void main() {
     #endif
 
     #if defined BEACON_BEAM
-	    gl_FragData[0] = vec4(Albedo.rgb * 0.1 * 5.0 * Emissive_Brightness, Albedo.a*color.a);
+        float alpha = Albedo.a * color.a;
+        float emissiveScale = 1.0;
+
+        if (alpha >= 0.99) {
+            // Vanilla beacon beam core (solid vertical column)
+            emissiveScale = 1.8 * min(Emissive_Brightness, 2.5);
+        } else {
+            // Translucent procedural visuals & mod spells (Dimension Cut, Ice Age, Grip of the Void, etc.)
+            // Scale alpha so multi-layered shells (like Ice Age hurricane) remain transparent
+            alpha = clamp(alpha * 0.55, 0.001, 0.75);
+            // Crisp, clean emission without blowing out HDR bloom (preserves sharp blade edges of Dimension Cut)
+            emissiveScale = 1.0 + 0.25 * clamp(Emissive_Brightness - 1.0, 0.0, 2.0);
+        }
+
+	    gl_FragData[0] = vec4(Albedo.rgb * 0.1 * emissiveScale, alpha);
     #endif
 
     #if defined LIGHTNING_AND_DRAGON_DEATH_BEAMS

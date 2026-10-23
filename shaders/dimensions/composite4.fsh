@@ -561,6 +561,10 @@ void main() {
 
   #if !defined DISTANT_HORIZONS && !defined VOXY || (AURORA_LOCATION > 0 && defined OVERWORLD_SHADER)
     float z2 = texelFetch(depthtex1, ivec2(gl_FragCoord.xy),0).x;
+    float translucentMasksEarly = texelFetch(colortex7, ivec2(gl_FragCoord.xy),0).a;
+    if(z2 >= 1.0 && z < 1.0 && translucentMasksEarly < 0.01) {
+      z2 = z;
+    }
   #endif
 
   #if AURORA_LOCATION > 0 && defined OVERWORLD_SHADER
@@ -818,10 +822,10 @@ void main() {
     }
   #endif
 
-  // ensure that bloomy fog mask in this VLBehindTranslucents.a does not darken outside of glass areas.
-  if(translucentCheck && !isSky) color.rgb = color.rgb * VLBehindTranslucents.a + VLBehindTranslucents.rgb;
+  // ensure that bloomy fog mask in this VLBehindTranslucents.a does not darken outside of glass/water areas.
+  if(translucentCheck && !isSky && (isWater || albedo.a > 0.01)) color.rgb = color.rgb * VLBehindTranslucents.a + VLBehindTranslucents.rgb;
   // to avoid bloomy fog applying to the surface of water, and the clouds, swap between high and low quality VL buffers.
-  bloomyFogMult *= isWater ? temporallyFilteredVL.a * 0.75 + 0.25 : (TranslucentShader.a < 0.9995 ? VLBehindTranslucents.a * 0.75 + 0.25 : 1.0);
+  bloomyFogMult *= isWater ? temporallyFilteredVL.a * 0.75 + 0.25 : (TranslucentShader.a < 0.9995 && (isWater || albedo.a > 0.01) ? VLBehindTranslucents.a * 0.75 + 0.25 : 1.0);
 
   // blend border fog. be sure to blend before and after forward rendered color blends.
   #if defined BorderFog && defined OVERWORLD_SHADER
@@ -836,7 +840,7 @@ void main() {
     borderFog.a = borderFogDensity;
     
     #if !defined DISTANT_HORIZONS && !defined VOXY
-      if(!isWater) color = mix(color, borderFog.rgb, getBorderFogDensity(linearDistance_cylinder_alt, normalize(playerPos_alt), z2 >= 1.0 || !translucentCheck));
+      if(!isWater && (isWater || albedo.a > 0.01)) color = mix(color, borderFog.rgb, getBorderFogDensity(linearDistance_cylinder_alt, normalize(playerPos_alt), z2 >= 1.0 || !translucentCheck));
     #endif
   #else
     vec4 borderFog = vec4(0.0);
@@ -852,7 +856,7 @@ void main() {
       #ifndef BIOME_TINT_WATER
       !isWater &&
       #endif
-      translucentCheck && !isBlockBreaking) color *= mix(normalize(albedo.rgb+1e-7), vec3(1.0), max(borderFog.a, min(max(0.1-albedo.a,0.0) * 10.0,1.0))) ;
+      translucentCheck && !isBlockBreaking && albedo.a > 0.01) color *= mix(normalize(albedo.rgb+1e-7), vec3(1.0), max(borderFog.a, min(max(0.1-albedo.a,0.0) * 10.0,1.0))) ;
   #endif
 
   #if defined BorderFog && defined OVERWORLD_SHADER
@@ -867,9 +871,6 @@ void main() {
 
   // blend all fog types. volumetric fog, volumetric clouds, distance based fogs for lava, powdered snow, blindness, and darkness.
   blendAllFogTypes(color, bloomyFogMult, temporallyFilteredVL, linearDistance, playerPos_normalized, cameraPosition, isSky, isLightning);
-
-  // blend forward rendered programs onto the color (after environmental fog so visuals aren't obliterated by sky/clouds).
-  blendForwardRendering(color, TranslucentShader);
 
   ////// --------------- RAINBOW
 
@@ -908,6 +909,9 @@ void main() {
       color += rainbowColor * (1.0 - caveDetection);
     } 
   #endif
+
+  // blend forward rendered programs (particles, mod spell effects, beacon beams) onto the scene color
+  blendForwardRendering(color, TranslucentShader);
 
   // (bloomy) rain effect
   #ifdef OVERWORLD_SHADER

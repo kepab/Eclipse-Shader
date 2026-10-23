@@ -427,6 +427,11 @@ void main() {
 
 	float z = texelFetch(depthtex1,ivec2(gl_FragCoord.xy),0).x;
 	float z0 = texelFetch(depthtex0,ivec2(gl_FragCoord.xy),0).x;
+	float translucentMasks = texelFetch(colortex7, ivec2(gl_FragCoord.xy), 0).a;
+
+	if(z >= 1.0 && z0 < 1.0 && translucentMasks < 0.01) {
+		z = z0;
+	}
 
 	#if defined DISTANT_HORIZONS || defined VOXY
 		float DH_depth1 = 1.0;
